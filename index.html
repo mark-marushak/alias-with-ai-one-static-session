@@ -1,58 +1,30 @@
 <!doctype html>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<h3>AI helper</h3>
+<script src="https://js.puter.com/v2/"></script>
 
-<input id="key" type="password" placeholder="Anthropic API key (sk-ant-...)" style="width:100%"><br>
 <select id="prompt">
-  <option value="summarize">Summarize</option>
-  <option value="translate">Translate</option>
-  <option value="fix">Fix grammar</option>
+  <option value="Summarize in one sentence: ">Summarize</option>
+  <option value="Translate to English: ">Translate</option>
+  <option value="Fix grammar and return the text: ">Fix grammar</option>
 </select><br>
 <textarea id="text" rows="5" style="width:100%"></textarea><br>
 <button id="go">Send</button>
 <pre id="out"></pre>
 
 <script>
-const PROMPTS = {
-  summarize: t => `Summarize in one sentence: ${t}`,
-  translate: t => `Translate to English: ${t}`,
-  fix: t => `Fix grammar and return the corrected text: ${t}`,
-};
-const SYSTEM = 'Reply ONLY with JSON: {"answer": "<text>"}';
-
-// Key lives only in sessionStorage: cleared when the tab closes
-const keyEl = document.getElementById("key");
-keyEl.value = sessionStorage.getItem("k") || "";
-keyEl.oninput = () => sessionStorage.setItem("k", keyEl.value.trim());
-
 document.getElementById("go").onclick = async () => {
   const out = document.getElementById("out");
-  const text = document.getElementById("text").value.slice(0, 2000);
-  const build = PROMPTS[document.getElementById("prompt").value];
   out.textContent = "...";
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": keyEl.value.trim(),
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-5-5",
-        max_tokens: 300,
-        system: SYSTEM,
-        messages: [{ role: "user", content: build(text) }],
-      }),
-    });
-    if (!r.ok) throw new Error(r.status === 401 ? "Invalid API key" : "API error " + r.status);
-    const raw = (await r.json()).content?.[0]?.text ?? "";
-    try { out.textContent = JSON.parse(raw).answer; }
-    catch { out.textContent = raw; }
+    // First call opens Puter's sign-in popup; later calls reuse the session
+    const res = await puter.ai.chat(
+      document.getElementById("prompt").value +
+        document.getElementById("text").value.slice(0, 2000),
+      { model: "claude-haiku-5-5" } // check Puter's model list for the exact id
+    );
+    out.textContent = res?.message?.content?.[0]?.text ?? String(res);
   } catch (e) {
-    out.textContent = e.message;
+    out.textContent = "Sign-in or request failed";
   }
 };
 </script>
